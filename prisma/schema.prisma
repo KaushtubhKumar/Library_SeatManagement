@@ -1,0 +1,217 @@
+// ============================================================
+// Library Seat Allocator — Prisma Schema
+// Thapar Institute — DBMS Project
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------------
+
+enum Role {
+  STUDENT
+  FACULTY
+  ADMIN
+}
+
+enum ZoneType {
+  SILENT
+  DISCUSSION
+  GROUP
+}
+
+enum SeatType {
+  SINGLE
+  CARREL
+  GROUP_TABLE
+}
+
+enum SeatState {
+  FREE
+  LOCKED     // soft-locked while a user is mid-booking
+  BOOKED     // confirmed booking, not checked in yet
+  OCCUPIED   // checked in / sensor-confirmed presence
+  MAINTENANCE
+}
+
+enum BookingStatus {
+  ACTIVE
+  CHECKED_IN
+  EXPIRED
+  CANCELLED
+  COMPLETED
+}
+
+enum OccupancySource {
+  SENSOR
+  CHECKIN
+  MANUAL_ADMIN
+  CHECKOUT
+}
+
+// ------------------------------------------------------------
+// CORE SPATIAL HIERARCHY
+// ------------------------------------------------------------
+
+model Building {
+  id     String @id @default(uuid())
+  name   String @default("Thapar Central Library")
+  floors Floor[]
+}
+
+model Floor {
+  id           String   @id @default(uuid())
+  building     Building @relation(fields: [buildingId], references: [id])
+  buildingId   String
+  floorNumber  Int
+  imageUrl     String?  // path to calibrated floor-plan image
+  imageWidth   Int?     // px, used to denormalize pos_x/pos_y on frontend
+  imageHeight  Int?
+  zones        Zone[]
+
+  @@unique([buildingId, floorNumber])
+}
+
+model Zone {
+  id                String   @id @default(uuid())
+  floor             Floor    @relation(fields: [floorId], references: [id])
+  floorId           String
+  name              String   // e.g. "Zone A - Silent Reading"
+  zoneType          ZoneType
+  declaredNoiseLevel Int     @default(2) // 1 (silent) - 5 (loud), static baseline
+  seats             Seat[]
+  noiseReports      ZoneNoiseReport[]
+}
+
+model Seat {
+  id             String   @id @default(uuid())
+  zone           Zone     @relation(fields: [zoneId], references: [id])
+  zoneId         String
+  seatCode       String   // e.g. "F2-A-014"
+  seatType       SeatType @default(SINGLE)
+  hasPowerSocket Boolean  @default(false)
+  hasWindow      Boolean  @default(false)
+  posX           Float    // normalized 0.0–1.0 on floor image
+  posY           Float
+
+  status         SeatStatus?
+  bookings       Booking[]
+  occupancyLogs  OccupancyLog[]
+
+  @@unique([zoneId, seatCode])
+  @@index([zoneId])
+}
+
+// ------------------------------------------------------------
+// LIVE STATE (1:1 with Seat — current snapshot, not history)
+// ------------------------------------------------------------
+
+model SeatStatus {
+  seat         Seat      @relation(fields: [seatId], references: [id])
+  seatId       String    @id
+  currentState SeatState @default(FREE)
+  lockedBy     String?   // userId holding a soft lock
+  lockedUntil  DateTime? // soft-lock expiry (~60s)
+  updatedAt    DateTime  @updatedAt
+}
+
+// ------------------------------------------------------------
+// USERS
+// No login for now — a user is created on first visit and
+// identified by an anonymous sessionId stored in a cookie.
+// rollNo/email are optional so real auth can be bolted on later
+// without a schema change.
+// ------------------------------------------------------------
+
+model User {
+  id             String    @id @default(uuid())
+  sessionId      String    @unique @default(uuid()) // cookie-based identity
+  name           String    // freeform, entered once, remembered via cookie
+  rollNo         String?   @unique
+  email          String?   @unique
+  role           Role      @default(STUDENT)
+  strikeCount    Int       @default(0) // no-show counter
+  suspendedUntil DateTime?
+  createdAt      DateTime  @default(now())
+  bookings       Booking[]
+  waitlists      Waitlist[]
+  noiseReports   ZoneNoiseReport[]
+}
+
+// ------------------------------------------------------------
+// BOOKING (the core transactional table)
+// ------------------------------------------------------------
+
+model Booking {
+  id           String        @id @default(uuid())
+  seat         Seat          @relation(fields: [seatId], references: [id])
+  seatId       String
+  user         User          @relation(fields: [userId], references: [id])
+  userId       String
+  startTime    DateTime      @default(now())
+  expiryTime   DateTime      // startTime + 30 min, checked-in bookings ignore this
+  checkedInAt  DateTime?
+  checkedOutAt DateTime?
+  // Bounded session: set to checkedInAt + MAX_SESSION_HOURS when the user
+  // checks in. Prevents an indefinite OCCUPIED lock that would make the
+  // exclusion constraint blind to future bookings on the same seat.
+  sessionExpiresAt DateTime?
+  status       BookingStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+
+  // QR check-in: qrToken is a signed JWT (bookingId + exp), never guessable.
+  // qrCodeDataUrl caches the rendered QR as a base64 PNG so we don't
+  // regenerate the image on every fetch.
+  qrToken       String   @unique
+  qrCodeDataUrl String?  @db.Text
+  bookingCode   String   @unique // short human-readable fallback, e.g. "LB2-4F9K"
+
+  @@index([seatId, status])
+  @@index([userId, status])
+  // NOTE: the actual anti-overlap guarantee is added via raw SQL migration
+  // (EXCLUDE USING gist) — Prisma can't express that constraint natively.
+}
+
+model Waitlist {
+  id        String   @id @default(uuid())
+  seatId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  joinedAt  DateTime @default(now())
+  notified  Boolean  @default(false)
+
+  @@index([seatId])
+}
+
+// ------------------------------------------------------------
+// HISTORY / AUDIT (append-only — never updated, only inserted)
+// ------------------------------------------------------------
+
+model OccupancyLog {
+  id            String          @id @default(uuid())
+  seat          Seat            @relation(fields: [seatId], references: [id])
+  seatId        String
+  detectedState SeatState
+  source        OccupancySource
+  ts            DateTime        @default(now())
+
+  @@index([seatId, ts])
+}
+
+model ZoneNoiseReport {
+  id        String   @id @default(uuid())
+  zone      Zone     @relation(fields: [zoneId], references: [id])
+  zoneId    String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  rating    Int      // 1 (silent) - 5 (loud), user-submitted post-session
+  ts        DateTime @default(now())
+}

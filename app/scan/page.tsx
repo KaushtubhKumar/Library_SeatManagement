@@ -11,6 +11,7 @@ export default function ScanPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<ScanState>("idle");
   const [message, setMessage] = useState<string>("");
+  const [manualCode, setManualCode] = useState("");
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -102,6 +103,45 @@ export default function ScanPage() {
     }
   }
 
+  async function handleManualSubmit() {
+    const code = manualCode.trim().toUpperCase();
+    if (!code) return;
+    setState("checking-in");
+    try {
+      const lookup = await fetch(`/api/bookings/lookup?code=${encodeURIComponent(code)}`);
+      const lookupData = await lookup.json();
+      if (!lookupData.ok) {
+        setState("error");
+        setMessage("Couldn't find a booking with that code. Double-check and try again.");
+        return;
+      }
+
+      const res = await fetch(`/api/bookings/${lookupData.bookingId}/checkin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingCode: code }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        setState("success");
+        setMessage("Checked in! Enjoy your session.");
+      } else {
+        setState("error");
+        setMessage(
+          data.error === "BOOKING_EXPIRED"
+            ? "This booking already expired."
+            : data.error === "INVALID_CODE"
+            ? "That code doesn't match this booking. Try again."
+            : "Couldn't check you in. Try again or ask a librarian."
+        );
+      }
+    } catch {
+      setState("error");
+      setMessage("Something went wrong checking that code.");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 px-6 py-8 flex flex-col items-center">
       <div className="max-w-sm w-full">
@@ -135,6 +175,31 @@ export default function ScanPage() {
         {state === "error" && (
           <div className="text-center py-6">
             <p className="text-red-400 mb-4">{message}</p>
+          </div>
+        )}
+
+        {state !== "success" && (
+          <div className="mt-6 pt-6 border-t border-neutral-800">
+            <p className="text-xs text-neutral-500 text-center mb-2">
+              Camera not working? Enter your booking code instead:
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleManualSubmit()}
+                placeholder="LB2-4F9K"
+                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-center font-mono tracking-wider uppercase placeholder:text-neutral-600 focus:outline-none focus:border-purple-600"
+                maxLength={10}
+              />
+              <button
+                onClick={handleManualSubmit}
+                disabled={!manualCode.trim() || state === "checking-in"}
+                className="bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:hover:bg-purple-700 rounded-lg px-4 font-medium transition-colors"
+              >
+                Check in
+              </button>
+            </div>
           </div>
         )}
 

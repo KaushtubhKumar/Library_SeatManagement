@@ -140,6 +140,7 @@ model User {
   role           Role      @default(STUDENT)
   strikeCount    Int       @default(0) // no-show counter
   suspendedUntil DateTime?
+  reliabilityScore Int     @default(0) // +on-time check-ins, -no-shows; drives waitlist priority
   createdAt      DateTime  @default(now())
   bookings       Booking[]
   waitlists      Waitlist[]
@@ -187,8 +188,14 @@ model Waitlist {
   userId    String
   joinedAt  DateTime @default(now())
   notified  Boolean  @default(false)
+  // Snapshot of the user's reliabilityScore at join time. Queue order is
+  // priorityScore DESC, joinedAt ASC — NOT joinedAt alone. Snapshotting
+  // avoids a user's later penalty/reward silently reordering a queue
+  // they already occupy a settled position in.
+  priorityScore Int    @default(0)
 
   @@index([seatId])
+  @@index([seatId, priorityScore, joinedAt])
 }
 
 // ------------------------------------------------------------

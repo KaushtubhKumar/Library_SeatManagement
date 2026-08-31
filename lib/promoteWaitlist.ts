@@ -3,17 +3,18 @@ import { notifyWaitlistPromoted } from "./notify";
 
 /**
  * Call this anywhere a seat transitions to FREE (cancel endpoint,
- * check-in-expiry sweep, etc.) to pop the oldest waitlist entry and
- * mark it notified. The SQL sweep function (fn_expire_stale_bookings)
- * does the same promotion directly in Postgres for the common case —
- * this app-level version exists for paths like manual cancellation
+ * check-in-expiry sweep, etc.) to pop the highest-priority waitlist
+ * entry and mark it notified. Order is priorityScore DESC (banded
+ * reliabilityScore — reward on-time check-ins, penalize no-shows),
+ * then joinedAt ASC, mirroring fn_expire_stale_bookings's SQL version.
+ * This app-level version exists for paths like manual cancellation
  * where we're already in a Prisma call and want the notify() hook to
  * fire inline rather than waiting for the next sweep tick.
  */
 export async function promoteNextWaitlistEntry(seatId: string) {
   const next = await prisma.waitlist.findFirst({
     where: { seatId, notified: false },
-    orderBy: { joinedAt: "asc" },
+    orderBy: [{ priorityScore: "desc" }, { joinedAt: "asc" }],
   });
 
   if (!next) return null;

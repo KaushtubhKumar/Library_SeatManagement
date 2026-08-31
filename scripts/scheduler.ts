@@ -39,4 +39,9 @@ cron.schedule("* * * * *", () => callEndpoint("/api/cron/expire"));
 // the day's accumulated booking data
 cron.schedule("0 3 * * *", () => callEndpoint("/api/admin/refresh-analytics"));
 
-console.log("Scheduler started — expiry sweep every 60s, analytics refresh nightly at 3am.");
+// Every 30 min: jitter tie-break order within same-priority waitlist bands
+cron.schedule("*/30 * * * *", () => callEndpoint("/api/cron/shuffle-waitlist"));
+
+console.log(
+  "Scheduler started — expiry sweep every 60s, waitlist shuffle every 30min, analytics refresh nightly at 3am."
+);

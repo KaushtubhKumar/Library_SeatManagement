@@ -4,13 +4,14 @@ import { verifyQrToken } from "@/lib/qr";
 import { getOrCreateSession } from "@/lib/session";
 
 /**
- * POST /api/bookings/:id/checkin   { qrToken? }
+ * POST /api/bookings/:id/checkin   { qrToken? } | { bookingCode? }
  *
- * Called when the in-app camera scanner reads a booking's QR code (or
- * a librarian enters the fallback bookingCode). Validates the token is
- * genuinely for THIS booking before flipping state — otherwise someone
- * could screenshot/guess a random signed-looking string and check
- * themselves into any seat.
+ * Called when the in-app camera scanner reads a booking's QR code, or
+ * when the manual-entry fallback submits the short bookingCode instead
+ * (bad lighting, cracked camera, camera permission denied, etc.).
+ * Validates either credential is genuinely for THIS booking before
+ * flipping state — otherwise someone could screenshot/guess a
+ * random signed-looking string and check themselves into any seat.
  *
  * The actual FREE→BOOKED→OCCUPIED transition happens via the
  * fn_booking_status_changed trigger once we flip status here; this
@@ -24,6 +25,7 @@ export async function POST(
   const user = await getOrCreateSession();
   const body = await req.json().catch(() => ({}));
   const qrToken = body?.qrToken as string | undefined;
+  const bookingCode = body?.bookingCode as string | undefined;
 
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) {
@@ -48,17 +50,19 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "BOOKING_EXPIRED" }, { status: 409 });
   }
 
-  // Verify the scanned token actually belongs to this booking (not just
-  // any validly-signed token — someone else's QR shouldn't check you in
-  // to a DIFFERENT seat even if somehow both tokens were valid JWTs).
+  // Verify the scanned QR token OR the manually-typed bookingCode
+  // actually belongs to THIS booking — someone else's credential
+  // shouldn't check you in to a DIFFERENT seat.
   if (qrToken) {
     const payload = verifyQrToken(qrToken);
     if (!payload || payload.bookingId !== bookingId) {
       return NextResponse.json({ ok: false, error: "INVALID_QR" }, { status: 400 });
     }
-  } else if (qrToken !== booking.qrToken) {
-    // No token provided at all and it doesn't match stored (manual
-    // code entry path should pass qrToken through unchanged from lookup)
+  } else if (bookingCode) {
+    if (bookingCode.trim().toUpperCase() !== booking.bookingCode) {
+      return NextResponse.json({ ok: false, error: "INVALID_CODE" }, { status: 400 });
+    }
+  } else {
     return NextResponse.json({ ok: false, error: "QR_TOKEN_REQUIRED" }, { status: 400 });
   }
 

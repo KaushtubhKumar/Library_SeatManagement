@@ -8,6 +8,12 @@ import { promoteNextWaitlistEntry } from "@/lib/promoteWaitlist";
  * Lets a user free up a seat they no longer need, instead of letting
  * it silently expire in 30 min. Good citizenship feature — surfaces
  * the seat to others (and the waitlist) immediately via the trigger.
+ *
+ * Reliability impact: a self-initiated cancel costs -1 (small — telling
+ * us early is the RIGHT behavior, better than ghosting). A silent
+ * no-show (fn_expire_stale_bookings, in the SQL migration) costs -3.
+ * Someone who cancels honestly should never rank below someone who
+ * just never showed up and said nothing.
  */
 export async function POST(
   req: NextRequest,
@@ -38,6 +44,16 @@ export async function POST(
       checkedOutAt: wasCheckedIn ? new Date() : undefined,
     },
   });
+
+  // Only penalize cancelling an unclaimed hold — once checked in, the
+  // seat was genuinely used, so leaving early isn't a queue-priority
+  // matter the way ghosting a reservation is.
+  if (!wasCheckedIn) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { reliabilityScore: { decrement: 1 } },
+    });
+  }
 
   await promoteNextWaitlistEntry(booking.seatId);
 

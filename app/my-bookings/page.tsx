@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Skeleton from "@/components/Skeleton";
+import ReliabilityBadge from "@/components/ReliabilityBadge";
+import { useToast } from "@/lib/toast";
 
 type Booking = {
   id: string;
@@ -26,13 +29,37 @@ const STATUS_STYLE: Record<string, string> = {
 export default function MyBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const { show } = useToast();
 
-  useEffect(() => {
+  function load() {
     fetch("/api/bookings")
       .then((r) => r.json())
       .then((data) => setBookings(data.bookings ?? []))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
   }, []);
+
+  async function cancelBooking(id: string) {
+    setCancellingId(id);
+    try {
+      const res = await fetch(`/api/bookings/${id}/cancel`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        show("Booking cancelled — the seat is free for others now.", "info");
+        load();
+      } else {
+        show("Couldn't cancel that booking. Try again.", "error");
+      }
+    } catch {
+      show("Something went wrong cancelling that booking.", "error");
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   const active = bookings.filter((b) => b.status === "ACTIVE");
   const history = bookings.filter((b) => b.status !== "ACTIVE");
@@ -41,11 +68,19 @@ export default function MyBookingsPage() {
     <main className="min-h-screen bg-neutral-950 text-neutral-100 px-6 py-10">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-semibold mb-1">My Bookings</h1>
-        <p className="text-neutral-400 mb-8 text-sm">
+        <p className="text-neutral-400 mb-4 text-sm">
           Active holds and your recent booking history.
         </p>
+        <div className="mb-8">
+          <ReliabilityBadge />
+        </div>
 
-        {loading && <p className="text-neutral-500 text-sm">Loading…</p>}
+        {loading && (
+          <div className="space-y-3 mb-8">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        )}
 
         {!loading && active.length > 0 && (
           <section className="mb-8">
@@ -56,23 +91,32 @@ export default function MyBookingsPage() {
               {active.map((b) => (
                 <div
                   key={b.id}
-                  className="rounded-xl border border-purple-900 bg-neutral-900 p-4 flex items-center justify-between"
+                  className="rounded-xl border border-accent/40 bg-surface p-4"
                 >
-                  <div>
-                    <p className="font-medium">
-                      Floor {b.seat.zone.floor.floorNumber} · {b.seat.zone.name} ·{" "}
-                      {b.seat.seatCode}
-                    </p>
-                    <p className="text-xs text-neutral-500 mt-0.5">
-                      Holds until {new Date(b.expiryTime).toLocaleTimeString()}
-                    </p>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="font-medium">
+                        Floor {b.seat.zone.floor.floorNumber} · {b.seat.zone.name} ·{" "}
+                        {b.seat.seatCode}
+                      </p>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Holds until {new Date(b.expiryTime).toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <Link
+                      href="/checkin-gate"
+                      className="text-xs bg-accent hover:bg-accent-hover rounded-lg px-3 py-2 shrink-0"
+                    >
+                      Claim seat
+                    </Link>
                   </div>
-                  <Link
-                    href="/checkin-gate"
-                    className="text-xs bg-purple-700 hover:bg-purple-600 rounded-lg px-3 py-2 shrink-0"
+                  <button
+                    onClick={() => cancelBooking(b.id)}
+                    disabled={cancellingId === b.id}
+                    className="text-xs text-neutral-500 hover:text-red-400 disabled:opacity-50 transition-colors"
                   >
-                    Claim seat
-                  </Link>
+                    {cancellingId === b.id ? "Cancelling…" : "Cancel this booking"}
+                  </button>
                 </div>
               ))}
             </div>
@@ -82,7 +126,7 @@ export default function MyBookingsPage() {
         {!loading && active.length === 0 && (
           <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6 text-center mb-8">
             <p className="text-neutral-400 text-sm mb-3">No active booking right now.</p>
-            <Link href="/" className="text-purple-400 text-sm font-medium">
+            <Link href="/" className="text-accent text-sm font-medium">
               Book a seat →
             </Link>
           </div>

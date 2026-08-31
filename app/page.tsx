@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { FloorSummary } from "@/lib/types";
+import Skeleton from "@/components/Skeleton";
 
 export default function HomePage() {
   const [floors, setFloors] = useState<FloorSummary[]>([]);
@@ -23,7 +24,12 @@ export default function HomePage() {
           Pick a floor to see live seat availability and book a spot.
         </p>
 
-        {loading && <p className="text-neutral-500">Loading floors…</p>}
+        {loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-28 w-full" />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {floors.map((floor) => {

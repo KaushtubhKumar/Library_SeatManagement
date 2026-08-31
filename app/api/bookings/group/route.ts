@@ -22,9 +22,9 @@ export async function POST(req: NextRequest) {
   const zoneId = body?.zoneId as string | undefined;
   const count = Number(body?.count);
 
-  if (!zoneId || !count || count < 2 || count > 8) {
+  if (!zoneId || !count || count < 2 || count > 4) {
     return NextResponse.json(
-      { ok: false, error: "INVALID_REQUEST", detail: "zoneId and count (2-8) required" },
+      { ok: false, error: "INVALID_REQUEST", detail: "zoneId and count (2-4) required" },
       { status: 400 }
     );
   }

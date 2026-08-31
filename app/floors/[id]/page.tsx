@@ -14,11 +14,11 @@ import { useToast } from "@/lib/toast";
 import type { ZoneDTO, FloorDetail, SeatDTO, BookingDTO, SeatState } from "@/lib/types";
 
 const STATE_COLOR: Record<string, string> = {
-  FREE: "#10b981",
-  LOCKED: "#f59e0b",
-  BOOKED: "#f97316",
-  OCCUPIED: "#ef4444",
-  MAINTENANCE: "#525252",
+  FREE: "#7fa66b",
+  LOCKED: "#c89b4a",
+  BOOKED: "#cc8b4a",
+  OCCUPIED: "#b5523f",
+  MAINTENANCE: "#57534e",
 };
 
 export default function FloorPage() {
@@ -132,7 +132,7 @@ export default function FloorPage() {
           </Link>
           <div className="flex items-center justify-between mt-1 flex-wrap gap-2">
             <div>
-              <h1 className="text-2xl font-semibold">
+              <h1 className="text-2xl font-display font-semibold">
                 {floor ? `Floor ${floor.floorNumber}` : "Loading…"}
               </h1>
               <p className="text-sm text-neutral-500">Tap an available seat to book it</p>

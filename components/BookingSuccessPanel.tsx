@@ -61,7 +61,7 @@ export default function BookingSuccessPanel({ booking, onClose }: Props) {
             <h3 className="text-lg font-semibold mb-1">Booking confirmed</h3>
             <p className="text-neutral-400 text-sm mb-4">
               Scan this QR at the seat within{" "}
-              <span className="text-purple-400 font-mono">
+              <span className="text-accent font-mono">
                 {minutes}:{seconds.toString().padStart(2, "0")}
               </span>{" "}
               to check in.

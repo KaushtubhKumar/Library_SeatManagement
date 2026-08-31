@@ -60,7 +60,7 @@ export default function SeatMap({ zones, onSeatClick }: Props) {
       </div>
 
       <div className="text-center">
-        <div className="h-1.5 mx-auto max-w-md rounded-full bg-gradient-to-r from-transparent via-purple-500/40 to-transparent mb-2" />
+        <div className="h-1.5 mx-auto max-w-md rounded-full bg-gradient-to-r from-transparent via-accent/40 to-transparent mb-2" />
         <p className="text-[11px] tracking-[0.3em] text-neutral-600 uppercase">Entrance this side</p>
       </div>
 

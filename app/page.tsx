@@ -19,7 +19,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 px-6 py-10">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-semibold mb-1">Thapar Central Library</h1>
+        <h1 className="text-3xl font-display font-semibold mb-1">Thapar Central Library</h1>
         <p className="text-neutral-400 mb-8">
           Pick a floor to see live seat availability and book a spot.
         </p>
@@ -40,10 +40,10 @@ export default function HomePage() {
               <Link
                 key={floor.id}
                 href={`/floors/${floor.id}`}
-                className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 hover:border-purple-600 transition-colors"
+                className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 hover:border-accent transition-colors"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xl font-medium">Floor {floor.floorNumber}</h2>
+                  <h2 className="text-xl font-display font-medium">Floor {floor.floorNumber}</h2>
                   <span
                     className={`text-sm px-2 py-1 rounded-full ${
                       pct > 40
@@ -58,7 +58,7 @@ export default function HomePage() {
                 </div>
                 <div className="h-2 rounded-full bg-neutral-800 overflow-hidden">
                   <div
-                    className="h-full bg-purple-600 transition-all"
+                    className="h-full bg-accent transition-all"
                     style={{ width: `${pct}%` }}
                   />
                 </div>

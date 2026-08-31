@@ -67,7 +67,7 @@ export default function MyBookingsPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 px-6 py-10">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-semibold mb-1">My Bookings</h1>
+        <h1 className="text-2xl font-display font-semibold mb-1">My Bookings</h1>
         <p className="text-neutral-400 mb-4 text-sm">
           Active holds and your recent booking history.
         </p>

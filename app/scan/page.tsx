@@ -160,7 +160,7 @@ export default function ScanPage() {
               </div>
             )}
             {state === "scanning" && (
-              <div className="absolute inset-0 border-4 border-purple-500/50 m-8 rounded-lg pointer-events-none" />
+              <div className="absolute inset-0 border-4 border-accent/50 m-8 rounded-lg pointer-events-none" />
             )}
           </div>
         )}
@@ -189,13 +189,13 @@ export default function ScanPage() {
                 onChange={(e) => setManualCode(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleManualSubmit()}
                 placeholder="LB2-4F9K"
-                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-center font-mono tracking-wider uppercase placeholder:text-neutral-600 focus:outline-none focus:border-purple-600"
+                className="flex-1 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-center font-mono tracking-wider uppercase placeholder:text-neutral-600 focus:outline-none focus:border-accent"
                 maxLength={10}
               />
               <button
                 onClick={handleManualSubmit}
                 disabled={!manualCode.trim() || state === "checking-in"}
-                className="bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:hover:bg-purple-700 rounded-lg px-4 font-medium transition-colors"
+                className="bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:hover:bg-accent rounded-lg px-4 font-medium transition-colors"
               >
                 Check in
               </button>

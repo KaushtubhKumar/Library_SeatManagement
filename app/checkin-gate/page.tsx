@@ -97,7 +97,7 @@ export default function CheckinGatePage() {
         {state === "idle" && (
           <>
             <PulseRing state="idle" />
-            <h1 className="text-2xl font-semibold mb-2 mt-6">Claim your seat</h1>
+            <h1 className="text-3xl font-display font-semibold mb-2 mt-6">Claim your seat</h1>
             <p className="text-neutral-400 mb-8 text-sm leading-relaxed">
               You're at the library entrance. Confirm your location to claim
               your booked seat — no code needed.
@@ -146,7 +146,7 @@ export default function CheckinGatePage() {
                 ✓
               </div>
             </div>
-            <h1 className="text-2xl font-semibold mb-1 mt-4">Seat claimed!</h1>
+            <h1 className="text-3xl font-display italic font-semibold mb-1 mt-4">Seat claimed!</h1>
             <p className="text-neutral-400 mb-6 text-sm">
               Floor {result.seat.floor} · {result.seat.zone} · Seat{" "}
               {result.seat.seatCode}

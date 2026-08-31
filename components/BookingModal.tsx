@@ -68,14 +68,14 @@ export default function BookingModal({ seat, zoneName, onClose, onBooked }: Prop
         {step === "confirm" && (
           <button
             onClick={handleConfirm}
-            className="w-full bg-purple-600 hover:bg-purple-500 rounded-lg py-3 font-medium transition-colors"
+            className="w-full bg-accent hover:bg-accent-hover rounded-lg py-3 font-medium transition-colors"
           >
             Confirm Booking
           </button>
         )}
 
         {step === "booking" && (
-          <button disabled className="w-full bg-purple-900 rounded-lg py-3 font-medium">
+          <button disabled className="w-full bg-accent/30 rounded-lg py-3 font-medium">
             Booking…
           </button>
         )}

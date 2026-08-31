@@ -21,7 +21,7 @@ export default function BottomNav() {
             key={tab.href}
             href={tab.href}
             className={`flex-1 text-center py-3 text-sm font-medium transition-colors ${
-              active ? "text-purple-400" : "text-neutral-500 hover:text-neutral-300"
+              active ? "text-accent" : "text-neutral-500 hover:text-neutral-300"
             }`}
           >
             {tab.label}

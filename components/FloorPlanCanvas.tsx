@@ -11,6 +11,8 @@ import {
   FLOOR_1_FEATURES,
   FLOOR_1_OUTLINE,
 } from "@/lib/floorPlanConfig";
+import { getSectionImage } from "@/lib/sectionImages";
+import SeatSectionPreview from "@/components/SeatSectionPreview";
 
 const STATE_FILL: Record<string, string> = {
   FREE: "#7fa66b",
@@ -27,7 +29,21 @@ interface Props {
 
 export default function FloorPlanCanvas({ zones, onSeatClick }: Props) {
   const [hovered, setHovered] = useState<SeatDTO | null>(null);
+  const [preview, setPreview] = useState<{ x: number; y: number; zoneName: string; imageSrc: string } | null>(
+    null
+  );
   const allSeats = zones.flatMap((z) => z.seats.map((s) => ({ ...s, zoneName: z.name })));
+
+  function handleContextMenu(e: React.MouseEvent, zoneName: string) {
+    e.preventDefault(); // suppress native right-click menu
+    const imageSrc = getSectionImage(zoneName);
+    if (!imageSrc) return; // no photo mapped for this zone yet
+    setPreview({ x: e.clientX, y: e.clientY, zoneName, imageSrc });
+  }
+
+  function hidePreview() {
+    setPreview(null);
+  }
 
   return (
     <div className="space-y-4">
@@ -101,7 +117,11 @@ export default function FloorPlanCanvas({ zones, onSeatClick }: Props) {
                   className={seat.currentState === "FREE" ? "cursor-pointer" : "cursor-not-allowed"}
                   onClick={() => seat.currentState === "FREE" && onSeatClick(seat, seat.zoneName)}
                   onMouseEnter={() => setHovered(seat)}
-                  onMouseLeave={() => setHovered(null)}
+                  onMouseLeave={() => {
+                    setHovered(null);
+                    hidePreview();
+                  }}
+                  onContextMenu={(e) => handleContextMenu(e, seat.zoneName)}
                 />
                 <rect
                   x={seat.posX * CANVAS_WIDTH - r}
@@ -145,6 +165,15 @@ export default function FloorPlanCanvas({ zones, onSeatClick }: Props) {
           )}
         </svg>
       </div>
+
+      {preview && (
+        <SeatSectionPreview
+          x={preview.x}
+          y={preview.y}
+          zoneName={preview.zoneName}
+          imageSrc={preview.imageSrc}
+        />
+      )}
     </div>
   );
 }

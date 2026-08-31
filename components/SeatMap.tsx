@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { SeatDTO, ZoneDTO, FloorDetail } from "@/lib/types";
+import { getSectionImage } from "@/lib/sectionImages";
+import SeatSectionPreview from "@/components/SeatSectionPreview";
 
 const STATE_STYLES: Record<string, { seat: string; label: string; dot: string }> = {
   FREE: {
@@ -47,6 +49,20 @@ const SEATS_PER_ROW = 6;
 
 export default function SeatMap({ zones, onSeatClick }: Props) {
   const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ x: number; y: number; zoneName: string; imageSrc: string } | null>(
+    null
+  );
+
+  function handleContextMenu(e: React.MouseEvent, zoneName: string) {
+    e.preventDefault();
+    const imageSrc = getSectionImage(zoneName);
+    if (!imageSrc) return;
+    setPreview({ x: e.clientX, y: e.clientY, zoneName, imageSrc });
+  }
+
+  function hidePreview() {
+    setPreview(null);
+  }
 
   return (
     <div className="space-y-8">
@@ -90,7 +106,11 @@ export default function SeatMap({ zones, onSeatClick }: Props) {
                         disabled={disabled}
                         onClick={() => onSeatClick(seat, zone.name)}
                         onMouseEnter={() => setHoveredSeat(seat.id)}
-                        onMouseLeave={() => setHoveredSeat(null)}
+                        onMouseLeave={() => {
+                          setHoveredSeat(null);
+                          hidePreview();
+                        }}
+                        onContextMenu={(e) => handleContextMenu(e, zone.name)}
                         title={`${seat.seatCode} — ${style.label}`}
                         className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-t-lg rounded-b-md border-2 flex items-center justify-center text-[10px] font-medium transition-all duration-100 active:scale-90 ${style.seat} ${
                           hoveredSeat === seat.id && !disabled ? "scale-110 shadow-lg shadow-emerald-500/20" : ""
@@ -109,6 +129,15 @@ export default function SeatMap({ zones, onSeatClick }: Props) {
           </div>
         </section>
       ))}
+
+      {preview && (
+        <SeatSectionPreview
+          x={preview.x}
+          y={preview.y}
+          zoneName={preview.zoneName}
+          imageSrc={preview.imageSrc}
+        />
+      )}
     </div>
   );
 }

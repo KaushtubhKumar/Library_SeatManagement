@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic"; // never cache/prerender an SSE stream
  * One dedicated `pg.Client` connection per open browser tab is what
  * LISTEN/NOTIFY requires — it's not something you can do over
  * Prisma's pooled connections, hence the raw `pg` client here.
+ * 
  */
 export async function GET() {
   console.log("Using:", process.env.DIRECT_DATABASE_URL ? "DIRECT" : "POOLED (fallback!)");

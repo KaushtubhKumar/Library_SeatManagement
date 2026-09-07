@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconMapPin, IconSatellite, IconTicket, IconClose, IconCheck } from "@/lib/icons";
+import { SEAT_CLAIMED_EVENT } from "@/components/CountdownBadge";
 
 type GateState = "idle" | "locating" | "claiming" | "success" | "error";
 
@@ -64,6 +66,7 @@ export default function CheckinGatePage() {
           if (data.ok) {
             setResult({ passcode: data.passcode, seat: data.seat });
             setState("success");
+            window.dispatchEvent(new Event(SEAT_CLAIMED_EVENT));
           } else {
             setState("error");
             setMessage(
@@ -125,8 +128,8 @@ export default function CheckinGatePage() {
 
         {state === "error" && (
           <>
-            <div className="w-20 h-20 mx-auto rounded-full bg-red-950 border-2 border-red-800 flex items-center justify-center text-3xl">
-              ✕
+            <div className="w-20 h-20 mx-auto rounded-full bg-red-950 border-2 border-red-800 flex items-center justify-center">
+              <IconClose width={28} height={28} className="text-red-400" />
             </div>
             <p className="text-red-400 text-sm mt-6 mb-6 leading-relaxed">{message}</p>
             <button
@@ -142,11 +145,11 @@ export default function CheckinGatePage() {
           <div className="animate-fade-in">
             <div className="relative w-24 h-24 mx-auto mb-2">
               <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" />
-              <div className="relative w-24 h-24 rounded-full bg-emerald-950 border-2 border-emerald-700 flex items-center justify-center text-4xl">
-                ✓
+              <div className="relative w-24 h-24 rounded-full bg-emerald-950 border-2 border-emerald-700 flex items-center justify-center">
+                <IconCheck width={34} height={34} className="text-emerald-400" />
               </div>
             </div>
-            <h1 className="text-3xl font-display italic font-semibold mb-1 mt-4">Seat claimed!</h1>
+            <h1 className="text-3xl font-display font-semibold mb-1 mt-4">Seat claimed!</h1>
             <p className="text-neutral-400 mb-6 text-sm">
               Floor {result.seat.floor} · {result.seat.zone} · Seat{" "}
               {result.seat.seatCode}
@@ -187,7 +190,9 @@ function PulseRing({ state }: { state: "idle" | "locating" | "claiming" }) {
           state !== "idle" ? "animate-pulse" : ""
         } flex items-center justify-center bg-surface`}
       >
-        <span className="text-3xl">{state === "idle" ? "📍" : state === "locating" ? "🛰️" : "🎫"}</span>
+        {state === "idle" && <IconMapPin width={32} height={32} className="text-neutral-400" />}
+        {state === "locating" && <IconSatellite width={32} height={32} className="text-blue-500" />}
+        {state === "claiming" && <IconTicket width={32} height={32} className="text-accent" />}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SeatDTO, ZoneDTO, FloorDetail } from "@/lib/types";
+import { IconUsers, IconPower } from "@/lib/icons";
 
 const STATE_STYLES: Record<string, { seat: string; label: string; dot: string }> = {
   FREE: {
@@ -31,11 +32,10 @@ const STATE_STYLES: Record<string, { seat: string; label: string; dot: string }>
   },
 };
 
-const ZONE_ICONS: Record<string, string> = {
-  SILENT: "🤫",
-  DISCUSSION: "💬",
-  GROUP: "👥",
-};
+// Zone-type visual distinction is now handled inline (see render) —
+// SILENT/DISCUSSION use no icon (text label is enough), GROUP uses
+// IconUsers, since a full icon-per-type set added visual noise without
+// adding information the zone name doesn't already carry.
 
 interface Props {
   floor: FloorDetail;
@@ -67,7 +67,7 @@ export default function SeatMap({ zones, onSeatClick }: Props) {
       {zones.map((zone) => (
         <section key={zone.id} className="space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{ZONE_ICONS[zone.zoneType] ?? "📚"}</span>
+            <span className="text-lg">{zone.zoneType === "GROUP" ? <IconUsers width={16} height={16} className="text-neutral-400" /> : null}</span>
             <h3 className="font-medium text-neutral-200">{zone.name}</h3>
             <span className="text-xs text-neutral-500">
               ({zone.seats.filter((s) => s.currentState === "FREE").length}/{zone.seats.length} free)
@@ -97,7 +97,12 @@ export default function SeatMap({ zones, onSeatClick }: Props) {
                         }`}
                       >
                         {seat.hasPowerSocket && (
-                          <span className="absolute -top-1 -right-1 text-[8px]">⚡</span>
+                          <IconPower
+                            width={9}
+                            height={9}
+                            className="absolute -top-1 -right-1 text-accent"
+                            strokeWidth={2.5}
+                          />
                         )}
                         {seat.seatCode.split("-").pop()?.replace(/^0+/, "") || seat.seatCode}
                       </button>

@@ -159,6 +159,11 @@ model Booking {
   userId       String
   startTime    DateTime      @default(now())
   expiryTime   DateTime      // startTime + 30 min, checked-in bookings ignore this
+  // How long the actual study session lasts once checked in (not the
+  // 30-min claim window). Chosen at booking time from fixed slots
+  // (30/60/90/120/150/180/210/240 min); applied to sessionExpiresAt
+  // the moment status flips to CHECKED_IN.
+  durationMinutes Int @default(30)
   checkedInAt  DateTime?
   checkedOutAt DateTime?
   // Bounded session: set to checkedInAt + MAX_SESSION_HOURS when the user
@@ -175,8 +180,17 @@ model Booking {
   qrCodeDataUrl String?  @db.Text
   bookingCode   String   @unique // short human-readable fallback, e.g. "LB2-4F9K"
 
+  // Group bookings: all seats booked together in one group-booking call
+  // share a groupId. Exactly one of them has isGroupOwnerSeat = true —
+  // the seat the organizer claims for themself. The rest are meant for
+  // teammates, each claimed via their own /claim/[bookingId] link, not
+  // the organizer's auto-detecting /checkin-gate flow.
+  groupId          String?
+  isGroupOwnerSeat Boolean @default(false)
+
   @@index([seatId, status])
   @@index([userId, status])
+  @@index([groupId])
   // NOTE: the actual anti-overlap guarantee is added via raw SQL migration
   // (EXCLUDE USING gist) — Prisma can't express that constraint natively.
 }

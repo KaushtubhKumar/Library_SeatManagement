@@ -4,16 +4,23 @@ import { getOrCreateSession } from "@/lib/session";
 import { promoteNextWaitlistEntry } from "@/lib/promoteWaitlist";
 
 /**
- * POST /api/bookings/:id/cancel
+ * POST /api/bookings/:id/cancel   { bookingCode? }
  * Lets a user free up a seat they no longer need, instead of letting
  * it silently expire in 30 min. Good citizenship feature — surfaces
  * the seat to others (and the waitlist) immediately via the trigger.
+ *
+ * Ownership is normally proven by session (booking.userId === caller).
+ * For group bookings, teammates claim/cancel their own seat from their
+ * own device — a different browser session than the organizer's — so
+ * we also accept the booking's own bookingCode as proof, the same way
+ * manual check-in already treats "knows the code" as sufficient.
  *
  * Reliability impact: a self-initiated cancel costs -1 (small — telling
  * us early is the RIGHT behavior, better than ghosting). A silent
  * no-show (fn_expire_stale_bookings, in the SQL migration) costs -3.
  * Someone who cancels honestly should never rank below someone who
- * just never showed up and said nothing.
+ * just never showed up and said nothing. Cancelling one seat in a
+ * group never touches the rest of the group's bookings.
  */
 export async function POST(
   req: NextRequest,
@@ -21,14 +28,20 @@ export async function POST(
 ) {
   const { id: bookingId } = await params;
   const user = await getOrCreateSession();
+  const body = await req.json().catch(() => ({}));
+  const bookingCode = body?.bookingCode as string | undefined;
 
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) {
     return NextResponse.json({ ok: false, error: "BOOKING_NOT_FOUND" }, { status: 404 });
   }
-  if (booking.userId !== user.id) {
+
+  const ownsViaSession = booking.userId === user.id;
+  const ownsViaCode = !!bookingCode && bookingCode.trim().toUpperCase() === booking.bookingCode;
+  if (!ownsViaSession && !ownsViaCode) {
     return NextResponse.json({ ok: false, error: "NOT_YOUR_BOOKING" }, { status: 403 });
   }
+
   if (booking.status !== "ACTIVE" && booking.status !== "CHECKED_IN") {
     return NextResponse.json(
       { ok: false, error: "BOOKING_NOT_CANCELLABLE", currentStatus: booking.status },
@@ -47,10 +60,13 @@ export async function POST(
 
   // Only penalize cancelling an unclaimed hold — once checked in, the
   // seat was genuinely used, so leaving early isn't a queue-priority
-  // matter the way ghosting a reservation is.
+  // matter the way ghosting a reservation is. Penalize whoever the
+  // booking actually belongs to (booking.userId), not necessarily the
+  // caller — matters for the bookingCode path where they may differ
+  // in identity even though they're the intended holder of this seat.
   if (!wasCheckedIn) {
     await prisma.user.update({
-      where: { id: user.id },
+      where: { id: booking.userId },
       data: { reliabilityScore: { decrement: 1 } },
     });
   }

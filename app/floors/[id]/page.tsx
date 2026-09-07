@@ -11,6 +11,7 @@ import GroupBookingModal from "@/components/GroupBookingModal";
 import Skeleton from "@/components/Skeleton";
 import { useSeatStream } from "@/lib/useSeatStream";
 import { useToast } from "@/lib/toast";
+import { IconPower, IconWindow, IconUsers } from "@/lib/icons";
 import type { ZoneDTO, FloorDetail, SeatDTO, BookingDTO, SeatState } from "@/lib/types";
 
 const STATE_COLOR: Record<string, string> = {
@@ -150,29 +151,32 @@ export default function FloorPage() {
           <div className="flex gap-2 mt-3">
             <button
               onClick={() => setFilters((f) => ({ ...f, power: !f.power }))}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
                 filters.power
                   ? "bg-accent border-accent text-white"
                   : "border-neutral-700 text-neutral-400 hover:border-neutral-500"
               }`}
             >
-              ⚡ Power socket
+              <IconPower width={13} height={13} />
+              Power socket
             </button>
             <button
               onClick={() => setFilters((f) => ({ ...f, window: !f.window }))}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
                 filters.window
                   ? "bg-accent border-accent text-white"
                   : "border-neutral-700 text-neutral-400 hover:border-neutral-500"
               }`}
             >
-              🪟 Window seat
+              <IconWindow width={13} height={13} />
+              Window seat
             </button>
             <button
               onClick={() => setShowGroupModal(true)}
-              className="text-xs px-3 py-1.5 rounded-full border border-neutral-700 text-neutral-400 hover:border-neutral-500 transition-colors ml-auto"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-neutral-700 text-neutral-400 hover:border-neutral-500 transition-colors ml-auto"
             >
-              👥 Book for a group
+              <IconUsers width={13} height={13} />
+              Book for a group
             </button>
           </div>
         </div>

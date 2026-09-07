@@ -13,7 +13,7 @@ export const LIBRARY_LOCATION = {
   name: "Thapar Institute Library",
   latitude: 30.3543790,
   longitude: 76.3698493,
-  radiusMeters: 200,
+  radiusMeters: 1000,
 };
 
 /** Haversine distance between two lat/lng points, in meters. */

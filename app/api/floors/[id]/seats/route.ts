@@ -21,7 +21,19 @@ export async function GET(
       zones: {
         include: {
           seats: {
-            include: { status: true },
+            include: {
+              status: true,
+              // Only the one still-relevant booking per seat: whichever
+              // ACTIVE or CHECKED_IN row is currently holding it. A seat
+              // has at most one of these at a time (that's what the
+              // EXCLUDE constraint guarantees), so "most recent" here
+              // is just a safety tie-breaker, not real ambiguity.
+              bookings: {
+                where: { status: { in: ["ACTIVE", "CHECKED_IN"] } },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+              },
+            },
             orderBy: { seatCode: "asc" },
           },
         },
@@ -62,6 +74,18 @@ export async function GET(
         posX: seat.posX,
         posY: seat.posY,
         currentState,
+        // When this seat frees back up, for the hover tooltip: BOOKED
+        // seats free up if the claim window lapses without a checkin
+        // (expiryTime); CHECKED_IN seats free up when the study
+        // session ends (sessionExpiresAt). FREE/MAINTENANCE seats have
+        // no relevant timestamp — null, and the frontend skips the
+        // tooltip's countdown line entirely.
+        occupiedUntil:
+          currentState === "BOOKED"
+            ? seat.bookings[0]?.expiryTime?.toISOString() ?? null
+            : currentState === "OCCUPIED"
+            ? seat.bookings[0]?.sessionExpiresAt?.toISOString() ?? null
+            : null,
       };
     }),
   }));

@@ -45,8 +45,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Only auto-detect a booking that's genuinely "theirs to claim":
+  // either an individually-made booking (groupId null), or the one
+  // seat within a group they marked as their own at booking time.
+  // Teammates' seats in the same group are claimed via their own
+  // /claim/[bookingId] link instead — never surfaced here, even
+  // though the DB row still technically belongs to the organizer's
+  // userId in this simulated no-multi-account model.
   const booking = await prisma.booking.findFirst({
-    where: { userId: user.id, status: "ACTIVE" },
+    where: {
+      userId: user.id,
+      status: "ACTIVE",
+      OR: [{ groupId: null }, { isGroupOwnerSeat: true }],
+    },
     orderBy: { createdAt: "desc" },
     include: { seat: { include: { zone: { include: { floor: true } } } } },
   });
@@ -61,7 +72,11 @@ export async function POST(req: NextRequest) {
 
   const checkedIn = await prisma.booking.update({
     where: { id: booking.id },
-    data: { status: "CHECKED_IN", checkedInAt: new Date() },
+    data: {
+      status: "CHECKED_IN",
+      checkedInAt: new Date(),
+      sessionExpiresAt: new Date(Date.now() + booking.durationMinutes * 60 * 1000),
+    },
   });
 
   // Short human-readable confirmation, distinct from the QR-scan flow's

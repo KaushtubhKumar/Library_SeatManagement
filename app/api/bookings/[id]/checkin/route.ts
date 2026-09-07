@@ -68,7 +68,11 @@ export async function POST(
 
   const updated = await prisma.booking.update({
     where: { id: bookingId },
-    data: { status: "CHECKED_IN", checkedInAt: new Date() },
+    data: {
+      status: "CHECKED_IN",
+      checkedInAt: new Date(),
+      sessionExpiresAt: new Date(Date.now() + booking.durationMinutes * 60 * 1000),
+    },
   });
 
   // Log the check-in as an occupancy event too — this is what makes

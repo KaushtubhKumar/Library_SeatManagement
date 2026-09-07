@@ -19,6 +19,10 @@ export interface SeatDTO {
   posX: number;
   posY: number;
   currentState: SeatState;
+  /** ISO timestamp this seat frees up again, for BOOKED/OCCUPIED seats
+   * only (claim-window expiry or session end, respectively) — null for
+   * FREE/LOCKED/MAINTENANCE. Powers the hover tooltip's countdown. */
+  occupiedUntil: string | null;
 }
 
 export interface ZoneDTO {

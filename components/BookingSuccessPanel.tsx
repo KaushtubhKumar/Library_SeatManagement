@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import type { BookingDTO } from "@/lib/types";
+import { IconCheck, IconClose } from "@/lib/icons";
 
 interface Props {
   booking: BookingDTO;
@@ -42,7 +43,7 @@ export default function BookingSuccessPanel({ booking, onClose }: Props) {
       <div className="bg-neutral-900 border border-neutral-800 rounded-t-2xl sm:rounded-2xl w-full sm:w-96 p-6 text-center">
         {status === "CHECKED_IN" ? (
           <>
-            <div className="text-green-400 text-4xl mb-2">✓</div>
+            <div className="w-14 h-14 mx-auto mb-2 rounded-full bg-emerald-950 border-2 border-emerald-700 flex items-center justify-center"><IconCheck width={22} height={22} className="text-emerald-400" /></div>
             <h3 className="text-lg font-semibold mb-1">Checked in</h3>
             <p className="text-neutral-400 text-sm mb-5">
               Your seat is yours for the next 4 hours.
@@ -50,7 +51,7 @@ export default function BookingSuccessPanel({ booking, onClose }: Props) {
           </>
         ) : expired ? (
           <>
-            <div className="text-red-400 text-4xl mb-2">✕</div>
+            <div className="w-14 h-14 mx-auto mb-2 rounded-full bg-red-950 border-2 border-red-800 flex items-center justify-center"><IconClose width={22} height={22} className="text-red-400" /></div>
             <h3 className="text-lg font-semibold mb-1">Booking expired</h3>
             <p className="text-neutral-400 text-sm mb-5">
               You didn&apos;t check in within 30 minutes. The seat is free again.

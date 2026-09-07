@@ -2,24 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateSession } from "@/lib/session";
 import { signQrToken, renderQrDataUrl, generateBookingCode } from "@/lib/qr";
+import { isValidSessionDuration } from "@/lib/sessionDuration";
 import { randomUUID } from "crypto";
 
-const BOOKING_DURATION_MINUTES = 30;
+const CLAIM_WINDOW_MINUTES = 30; // fixed — time to physically arrive and claim
 const MAX_ACTIVE_BOOKINGS_PER_USER = 2;
 
 /**
- * POST /api/bookings   { seatId }
+ * POST /api/bookings   { seatId, durationMinutes? }
  *
  * Confirms a booking for a seat the user (should have) soft-locked.
  * The seat lock is a UX nicety, not the safety mechanism — the actual
  * conflict-freedom guarantee is the EXCLUDE constraint on Booking, so
  * this still works correctly even if the lock already expired between
  * the user clicking "confirm" and this request landing.
+ *
+ * durationMinutes is how long the STUDY SESSION lasts once checked
+ * in (30–240 min, in 30-min slots) — separate from the fixed 30-min
+ * claim window (expiryTime) before check-in.
  */
 export async function POST(req: NextRequest) {
   const user = await getOrCreateSession();
   const body = await req.json().catch(() => null);
   const seatId = body?.seatId as string | undefined;
+  const durationMinutes = isValidSessionDuration(body?.durationMinutes) ? body.durationMinutes : 30;
 
   if (!seatId) {
     return NextResponse.json({ ok: false, error: "SEAT_ID_REQUIRED" }, { status: 400 });
@@ -53,7 +59,7 @@ export async function POST(req: NextRequest) {
   }
 
   const startTime = new Date();
-  const expiryTime = new Date(startTime.getTime() + BOOKING_DURATION_MINUTES * 60 * 1000);
+  const expiryTime = new Date(startTime.getTime() + CLAIM_WINDOW_MINUTES * 60 * 1000);
   const bookingId = randomUUID();
   const qrToken = signQrToken({ bookingId, seatId });
   const qrCodeDataUrl = await renderQrDataUrl(qrToken);
@@ -70,6 +76,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         startTime,
         expiryTime,
+        durationMinutes,
         qrToken,
         qrCodeDataUrl,
         bookingCode,

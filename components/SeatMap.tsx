@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import type { SeatDTO, ZoneDTO, FloorDetail } from "@/lib/types";
-import { getSectionImage } from "@/lib/sectionImages";
-import SeatSectionPreview from "@/components/SeatSectionPreview";
+import { IconUsers, IconPower } from "@/lib/icons";
 
 const STATE_STYLES: Record<string, { seat: string; label: string; dot: string }> = {
   FREE: {
@@ -33,11 +32,10 @@ const STATE_STYLES: Record<string, { seat: string; label: string; dot: string }>
   },
 };
 
-const ZONE_ICONS: Record<string, string> = {
-  SILENT: "🤫",
-  DISCUSSION: "💬",
-  GROUP: "👥",
-};
+// Zone-type visual distinction is now handled inline (see render) —
+// SILENT/DISCUSSION use no icon (text label is enough), GROUP uses
+// IconUsers, since a full icon-per-type set added visual noise without
+// adding information the zone name doesn't already carry.
 
 interface Props {
   floor: FloorDetail;
@@ -49,20 +47,6 @@ const SEATS_PER_ROW = 6;
 
 export default function SeatMap({ zones, onSeatClick }: Props) {
   const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ x: number; y: number; zoneName: string; imageSrc: string } | null>(
-    null
-  );
-
-  function handleContextMenu(e: React.MouseEvent, zoneName: string) {
-    e.preventDefault();
-    const imageSrc = getSectionImage(zoneName);
-    if (!imageSrc) return;
-    setPreview({ x: e.clientX, y: e.clientY, zoneName, imageSrc });
-  }
-
-  function hidePreview() {
-    setPreview(null);
-  }
 
   return (
     <div className="space-y-8">
@@ -83,7 +67,7 @@ export default function SeatMap({ zones, onSeatClick }: Props) {
       {zones.map((zone) => (
         <section key={zone.id} className="space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{ZONE_ICONS[zone.zoneType] ?? "📚"}</span>
+            <span className="text-lg">{zone.zoneType === "GROUP" ? <IconUsers width={16} height={16} className="text-neutral-400" /> : null}</span>
             <h3 className="font-medium text-neutral-200">{zone.name}</h3>
             <span className="text-xs text-neutral-500">
               ({zone.seats.filter((s) => s.currentState === "FREE").length}/{zone.seats.length} free)
@@ -106,18 +90,19 @@ export default function SeatMap({ zones, onSeatClick }: Props) {
                         disabled={disabled}
                         onClick={() => onSeatClick(seat, zone.name)}
                         onMouseEnter={() => setHoveredSeat(seat.id)}
-                        onMouseLeave={() => {
-                          setHoveredSeat(null);
-                          hidePreview();
-                        }}
-                        onContextMenu={(e) => handleContextMenu(e, zone.name)}
+                        onMouseLeave={() => setHoveredSeat(null)}
                         title={`${seat.seatCode} — ${style.label}`}
                         className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-t-lg rounded-b-md border-2 flex items-center justify-center text-[10px] font-medium transition-all duration-100 active:scale-90 ${style.seat} ${
                           hoveredSeat === seat.id && !disabled ? "scale-110 shadow-lg shadow-emerald-500/20" : ""
                         }`}
                       >
                         {seat.hasPowerSocket && (
-                          <span className="absolute -top-1 -right-1 text-[8px]">⚡</span>
+                          <IconPower
+                            width={9}
+                            height={9}
+                            className="absolute -top-1 -right-1 text-accent"
+                            strokeWidth={2.5}
+                          />
                         )}
                         {seat.seatCode.split("-").pop()?.replace(/^0+/, "") || seat.seatCode}
                       </button>
@@ -129,15 +114,6 @@ export default function SeatMap({ zones, onSeatClick }: Props) {
           </div>
         </section>
       ))}
-
-      {preview && (
-        <SeatSectionPreview
-          x={preview.x}
-          y={preview.y}
-          zoneName={preview.zoneName}
-          imageSrc={preview.imageSrc}
-        />
-      )}
     </div>
   );
 }

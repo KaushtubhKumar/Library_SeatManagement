@@ -18,9 +18,21 @@ export const dynamic = "force-dynamic"; // never cache/prerender an SSE stream
  * Prisma's pooled connections, hence the raw `pg` client here.
  */
 export async function GET() {
+  console.log("Using:", process.env.DIRECT_DATABASE_URL ? "DIRECT" : "POOLED (fallback!)");
   const encoder = new TextEncoder();
   const pgClient = new Client({
-    connectionString: process.env.DATABASE_URL,
+    // LISTEN/NOTIFY needs a real, persistent session on one Postgres
+    // connection. DATABASE_URL is Neon's POOLED (-pooler / PgBouncer
+    // transaction-mode) connection string, which does not support
+    // holding a session open like this — it drops it, repeatedly,
+    // which is what shows up as ETIMEDOUT spam in the logs even
+    // though the rest of the app (using Prisma on the pooled URL) is
+    // completely unaffected. This route specifically needs the
+    // DIRECT connection string instead — same Neon project, but the
+    // hostname without "-pooler" in it. Falls back to DATABASE_URL
+    // only if you haven't set this yet, so it still runs — just with
+    // the same timeout spam until you do.
+    connectionString: process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL,
     connectionTimeoutMillis: 20000,
   });
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { SeatDTO, ZoneDTO } from "@/lib/types";
+import { ICON_PATHS } from "@/lib/icons";
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
@@ -11,8 +12,6 @@ import {
   FLOOR_1_FEATURES,
   FLOOR_1_OUTLINE,
 } from "@/lib/floorPlanConfig";
-import { getSectionImage } from "@/lib/sectionImages";
-import SeatSectionPreview from "@/components/SeatSectionPreview";
 
 const STATE_FILL: Record<string, string> = {
   FREE: "#7fa66b",
@@ -29,20 +28,22 @@ interface Props {
 
 export default function FloorPlanCanvas({ zones, onSeatClick }: Props) {
   const [hovered, setHovered] = useState<SeatDTO | null>(null);
-  const [preview, setPreview] = useState<{ x: number; y: number; zoneName: string; imageSrc: string } | null>(
-    null
-  );
+  const [now, setNow] = useState(() => Date.now());
   const allSeats = zones.flatMap((z) => z.seats.map((s) => ({ ...s, zoneName: z.name })));
 
-  function handleContextMenu(e: React.MouseEvent, zoneName: string) {
-    e.preventDefault(); // suppress native right-click menu
-    const imageSrc = getSectionImage(zoneName);
-    if (!imageSrc) return; // no photo mapped for this zone yet
-    setPreview({ x: e.clientX, y: e.clientY, zoneName, imageSrc });
-  }
+  // Only ticks while something's actually hovered — no point re-rendering
+  // every second when nobody's looking at a tooltip.
+  useEffect(() => {
+    if (!hovered) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [hovered]);
 
-  function hidePreview() {
-    setPreview(null);
+  function formatTimeLeft(iso: string): string {
+    const diff = Math.max(0, Math.round((new Date(iso).getTime() - now) / 1000));
+    const m = Math.floor(diff / 60);
+    const s = diff % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   }
 
   return (
@@ -117,11 +118,7 @@ export default function FloorPlanCanvas({ zones, onSeatClick }: Props) {
                   className={seat.currentState === "FREE" ? "cursor-pointer" : "cursor-not-allowed"}
                   onClick={() => seat.currentState === "FREE" && onSeatClick(seat, seat.zoneName)}
                   onMouseEnter={() => setHovered(seat)}
-                  onMouseLeave={() => {
-                    setHovered(null);
-                    hidePreview();
-                  }}
-                  onContextMenu={(e) => handleContextMenu(e, seat.zoneName)}
+                  onMouseLeave={() => setHovered(null)}
                 />
                 <rect
                   x={seat.posX * CANVAS_WIDTH - r}
@@ -135,7 +132,7 @@ export default function FloorPlanCanvas({ zones, onSeatClick }: Props) {
                   strokeWidth={1}
                   pointerEvents="none"
                 >
-                  <title>{`${seat.seatCode} — ${seat.currentState}`}</title>
+                  <title>{`${seat.seatCode} — ${seat.currentState}${seat.occupiedUntil ? ` — free ${formatTimeLeft(seat.occupiedUntil)}` : ""}`}</title>
                 </rect>
               </g>
             );
@@ -144,36 +141,38 @@ export default function FloorPlanCanvas({ zones, onSeatClick }: Props) {
           {hovered && (
             <g pointerEvents="none">
               <rect
-                x={hovered.posX * CANVAS_WIDTH - 34}
-                y={hovered.posY * CANVAS_HEIGHT - 32}
-                width={68}
-                height={18}
+                x={hovered.posX * CANVAS_WIDTH - 42}
+                y={hovered.posY * CANVAS_HEIGHT - (hovered.occupiedUntil ? 48 : 32)}
+                width={84}
+                height={hovered.occupiedUntil ? 34 : 18}
                 rx={4}
                 fill="#171717"
                 stroke="#404040"
               />
               <text
                 x={hovered.posX * CANVAS_WIDTH}
-                y={hovered.posY * CANVAS_HEIGHT - 19}
+                y={hovered.posY * CANVAS_HEIGHT - (hovered.occupiedUntil ? 35 : 19)}
                 textAnchor="middle"
                 fontSize={10}
                 fill="#e5e5e5"
               >
                 {hovered.seatCode}
               </text>
+              {hovered.occupiedUntil && (
+                <text
+                  x={hovered.posX * CANVAS_WIDTH}
+                  y={hovered.posY * CANVAS_HEIGHT - 21}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill="#c89b4a"
+                >
+                  Free in {formatTimeLeft(hovered.occupiedUntil)}
+                </text>
+              )}
             </g>
           )}
         </svg>
       </div>
-
-      {preview && (
-        <SeatSectionPreview
-          x={preview.x}
-          y={preview.y}
-          zoneName={preview.zoneName}
-          imageSrc={preview.imageSrc}
-        />
-      )}
     </div>
   );
 }
@@ -202,13 +201,19 @@ function TableBars({ block }: { block: (typeof FLOOR_1_SEAT_BLOCKS)[number] }) {
 
 function Feature({ feature }: { feature: (typeof FLOOR_1_FEATURES)[number] }) {
   if (feature.kind === "rect") {
+    const iconPath = ICON_PATHS[feature.icon as keyof typeof ICON_PATHS];
+    const iconSize = 18;
+    const iconX = feature.x + feature.w / 2 - iconSize / 2;
+    const iconY = feature.y + feature.h / 2 - iconSize - 2;
     return (
       <g>
         <rect x={feature.x} y={feature.y} width={feature.w} height={feature.h} rx={10} fill="#171717" stroke="#404040" strokeDasharray="4 3" />
-        <text x={feature.x + feature.w / 2} y={feature.y + feature.h / 2 - 4} textAnchor="middle" fontSize={14}>
-          {feature.icon}
-        </text>
-        <text x={feature.x + feature.w / 2} y={feature.y + feature.h / 2 + 14} textAnchor="middle" fontSize={9} fill="#a3a3a3">
+        {iconPath && (
+          <svg x={iconX} y={iconY} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
+            <path d={iconPath} stroke="#a3a3a3" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+        <text x={feature.x + feature.w / 2} y={feature.y + feature.h / 2 + 16} textAnchor="middle" fontSize={9} fill="#a3a3a3">
           {feature.label}
         </text>
       </g>

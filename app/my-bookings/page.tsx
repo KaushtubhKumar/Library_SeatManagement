@@ -5,6 +5,7 @@ import Link from "next/link";
 import Skeleton from "@/components/Skeleton";
 import ReliabilityBadge from "@/components/ReliabilityBadge";
 import { useToast } from "@/lib/toast";
+import { IconBan, IconUsers } from "@/lib/icons";
 
 type Booking = {
   id: string;
@@ -12,6 +13,8 @@ type Booking = {
   bookingCode: string;
   expiryTime: string;
   createdAt: string;
+  groupId: string | null;
+  isGroupOwnerSeat: boolean;
   seat: {
     seatCode: string;
     zone: { name: string; floor: { floorNumber: number } };
@@ -30,6 +33,7 @@ export default function MyBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [abortingGroupId, setAbortingGroupId] = useState<string | null>(null);
   const { show } = useToast();
 
   function load() {
@@ -61,11 +65,50 @@ export default function MyBookingsPage() {
     }
   }
 
+  async function abortGroup(groupId: string) {
+    setAbortingGroupId(groupId);
+    try {
+      const res = await fetch(`/api/bookings/group/${groupId}/abort`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        show(`Cancelled ${data.cancelledCount} seat${data.cancelledCount === 1 ? "" : "s"} in the group.`, "info");
+        load();
+      } else {
+        show("Couldn't cancel the group. Try again.", "error");
+      }
+    } catch {
+      show("Something went wrong cancelling the group.", "error");
+    } finally {
+      setAbortingGroupId(null);
+    }
+  }
+
+  function copyClaimLink(bookingId: string) {
+    const url = `${window.location.origin}/claim/${bookingId}`;
+    navigator.clipboard.writeText(url).then(
+      () => show("Claim link copied — send it to your teammate.", "success"),
+      () => show(url, "info")
+    );
+  }
+
   const active = bookings.filter((b) => b.status === "ACTIVE");
   const history = bookings.filter((b) => b.status !== "ACTIVE");
 
+  // Group active bookings by groupId so a group's seats render as one
+  // card with one "abort whole group" action, instead of N separate
+  // cards that look unrelated. Solo bookings (groupId null) stay
+  // ungrouped, one card each.
+  const soloActive = active.filter((b) => !b.groupId);
+  const groupedActive = new Map<string, Booking[]>();
+  for (const b of active) {
+    if (!b.groupId) continue;
+    const list = groupedActive.get(b.groupId) ?? [];
+    list.push(b);
+    groupedActive.set(b.groupId, list);
+  }
+
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 px-6 py-10">
+    <main className="min-h-screen px-6 py-10">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-display font-semibold mb-1">My Bookings</h1>
         <p className="text-neutral-400 mb-4 text-sm">
@@ -88,16 +131,12 @@ export default function MyBookingsPage() {
               Active — claim within your window
             </h2>
             <div className="space-y-3">
-              {active.map((b) => (
-                <div
-                  key={b.id}
-                  className="rounded-xl border border-accent/40 bg-surface p-4"
-                >
+              {soloActive.map((b) => (
+                <div key={b.id} className="rounded-xl border border-accent/40 bg-surface p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="font-medium">
-                        Floor {b.seat.zone.floor.floorNumber} · {b.seat.zone.name} ·{" "}
-                        {b.seat.seatCode}
+                        Floor {b.seat.zone.floor.floorNumber} · {b.seat.zone.name} · {b.seat.seatCode}
                       </p>
                       <p className="text-xs text-neutral-500 mt-0.5">
                         Holds until {new Date(b.expiryTime).toLocaleTimeString()}
@@ -113,12 +152,65 @@ export default function MyBookingsPage() {
                   <button
                     onClick={() => cancelBooking(b.id)}
                     disabled={cancellingId === b.id}
-                    className="text-xs text-neutral-500 hover:text-red-400 disabled:opacity-50 transition-colors"
+                    className="text-xs text-neutral-500 hover:text-danger disabled:opacity-50 transition-colors"
                   >
                     {cancellingId === b.id ? "Cancelling…" : "Cancel this booking"}
                   </button>
                 </div>
               ))}
+
+              {Array.from(groupedActive.entries()).map(([groupId, seats]) => {
+                const organizerSeat = seats.find((s) => s.isGroupOwnerSeat);
+                const teammateSeats = seats.filter((s) => !s.isGroupOwnerSeat);
+                return (
+                  <div key={groupId} className="rounded-xl border border-accent/40 bg-surface p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <IconUsers width={15} height={15} className="text-accent" />
+                      <p className="font-medium text-sm">
+                        Group booking · {seats.length} seat{seats.length === 1 ? "" : "s"} ·{" "}
+                        {seats[0].seat.zone.name}
+                      </p>
+                    </div>
+
+                    {organizerSeat && (
+                      <div className="flex items-center justify-between mb-2 pb-2 border-b border-neutral-800">
+                        <span className="text-sm text-neutral-300">
+                          Seat {organizerSeat.seat.seatCode} <span className="text-accent text-xs">(you)</span>
+                        </span>
+                        <Link
+                          href="/checkin-gate"
+                          className="text-xs bg-accent hover:bg-accent-hover rounded-lg px-3 py-1.5"
+                        >
+                          Claim seat
+                        </Link>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5 mb-3">
+                      {teammateSeats.map((s) => (
+                        <div key={s.id} className="flex items-center justify-between text-sm">
+                          <span className="text-neutral-400">Seat {s.seat.seatCode}</span>
+                          <button
+                            onClick={() => copyClaimLink(s.id)}
+                            className="text-xs text-accent hover:text-accent-hover underline"
+                          >
+                            Copy claim link
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => abortGroup(groupId)}
+                      disabled={abortingGroupId === groupId}
+                      className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-danger disabled:opacity-50 transition-colors"
+                    >
+                      <IconBan width={12} height={12} />
+                      {abortingGroupId === groupId ? "Cancelling all…" : "Abort whole group"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}

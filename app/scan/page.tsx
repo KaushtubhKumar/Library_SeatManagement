@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { IconCheck } from "@/lib/icons";
 import jsQR from "jsqr";
 import Link from "next/link";
 
@@ -167,7 +168,7 @@ export default function ScanPage() {
 
         {state === "success" && (
           <div className="text-center py-10">
-            <div className="text-green-400 text-5xl mb-3">✓</div>
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-emerald-950 border-2 border-emerald-700 flex items-center justify-center"><IconCheck width={26} height={26} className="text-emerald-400" /></div>
             <p>{message}</p>
           </div>
         )}
